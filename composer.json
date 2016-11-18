@@ -1,0 +1,26 @@
+{
+    "name": "blackwoodseven/php-lib-amqp-service",
+    "type": "library",
+    "description": "Amqp Service.",
+    "keywords": ["amqp", "message", "queue", "rabbit", "serviceprovider"],
+    "homepage": "https://github.com/blackwoodseven/php-lib-amqp-service",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Thomas Gielfeldt",
+            "email": "tg@blackwoodseven.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0.0",
+        "php-amqplib/php-amqplib": "^2.6",
+        "silex/silex": "^2.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^5.7"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": { "BlackwoodSeven\\AmqpService\\": "src/" }
+    }
+}
