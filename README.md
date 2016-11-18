@@ -22,7 +22,7 @@ $app->register(new \BlackwoodSeven\AmqpService\ServiceProvider(), [
             ],
         ],
         'queues' => [
-            'my_queue_q' => [
+            'my_queue_1' => [
                 'arguments' => [],
                 'bindings' => [
                     'my_exchange_1' => [
