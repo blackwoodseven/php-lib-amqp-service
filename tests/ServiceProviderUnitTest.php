@@ -25,92 +25,90 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
         $serviceProvider = new ServiceProvider();
 
 
-        $app['amqp_service.ensure_topology'] = false;
-        $app['amqp_service.definitions'] = [
-            'exchanges' => [
-                'test_exchange' => [
-                    'type' => 'topic',
-                ],
+        $app['amqp.ensure_topology'] = false;
+        $app['amqp.exchanges'] = [
+            'test_exchange' => [
+                'type' => 'topic',
             ],
         ];
-        $app['amqp_service.channel'] = $this->mockChannel();
-        $app['amqp_service.channel']
+        $app['amqp.queues'] = [];
+        $app['amqp.channel'] = $this->mockChannel();
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
         $serviceProvider->boot($app);
 
 
-        $app['amqp_service.ensure_topology'] = true;
-        $app['amqp_service.definitions'] = [];
-        $app['amqp_service.channel'] = $this->mockChannel();
-        $app['amqp_service.channel']
+        $app['amqp.ensure_topology'] = true;
+        $app['amqp.exchanges'] = [];
+        $app['amqp.queues'] = [];
+        $app['amqp.channel'] = $this->mockChannel();
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
         $serviceProvider->boot($app);
 
 
-        $app['amqp_service.ensure_topology'] = true;
-        $app['amqp_service.definitions'] = [
-            'exchanges' => [
-                'test_exchange' => [
-                    'type' => 'topic',
-                ],
+        $app['amqp.ensure_topology'] = true;
+        $app['amqp.exchanges'] = [
+            'test_exchange' => [
+                'type' => 'topic',
             ],
         ];
-        $app['amqp_service.channel'] = $this->mockChannel();
-        $app['amqp_service.channel']
+        $app['amqp.queues'] = [];
+        $app['amqp.channel'] = $this->mockChannel();
+        $app['amqp.channel']
             ->expects($this->once())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
         $serviceProvider->boot($app);
 
-        $app['amqp_service.ensure_topology'] = true;
-        $app['amqp_service.definitions'] = [
-            'queues' => [
-                'test_queue' => [
-                    'arguments' => [],
-                    'bindings' => [
-                        'test_exchange' => ['routingkey1.test'],
-                    ],
+        $app['amqp.ensure_topology'] = true;
+        $app['amqp.exchanges'] = [];
+        $app['amqp.queues'] = [
+            'test_queue' => [
+                'arguments' => [],
+                'bindings' => [
+                    'test_exchange' => ['routingkey1.test'],
                 ],
             ],
         ];
-        $app['amqp_service.channel'] = $this->mockChannel();
-        $app['amqp_service.channel']
+        $app['amqp.channel'] = $this->mockChannel();
+        $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->once())
             ->method('queue_declare')
             ->will($this->returnValue(true));
-        $app['amqp_service.channel']
+        $app['amqp.channel']
             ->expects($this->once())
             ->method('queue_bind')
             ->will($this->returnValue(true));

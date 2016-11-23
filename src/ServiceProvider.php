@@ -11,15 +11,18 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
 {
     public function register(Container $app)
     {
-        $app['amqp_service.connection'] = function () use ($app) {
-            $options = $app['amqp_service.options'];
+        $app['amqp.connection'] = function () use ($app) {
+            $options = $app['amqp.options'];
 
-            if (isset($app['console.name'])) {
-                // Convert "bw7:messagequeue:foo" to "foo", because RabbitMQ Admin only shows first 10 characters.
-                $parts = explode(':', $app['console.name']);
-                $name = end($parts);
-                AMQPConnection::$LIBRARY_PROPERTIES['product'] = ['S', $name];
+            if (empty($options['product'])) {
+                throw new \InvalidArgumentException('AmqpService: "product" must be specified.');
             }
+
+            if (empty($options['dsn'])) {
+                throw new \InvalidArgumentException('AmqpService: "dsn" must be specified.');
+            }
+
+            AMQPConnection::$LIBRARY_PROPERTIES['product'] = ['S', $options['product']];
 
             $dsn = parse_url($options['dsn']);
             return new AMQPConnection(
@@ -31,31 +34,33 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
             );
         };
 
-        $app['amqp_service.channel'] = function () use ($app) {
-            return $app['amqp_service.connection']->channel();
+        $app['amqp.channel'] = function () use ($app) {
+            return $app['amqp.connection']->channel();
         };
 
         // Default settings.
-        $app['amqp_service.options'] = [];
-        $app['amqp_service.definitions'] = [];
-        $app['amqp_service.ensure_topology'] = true;
+        $app['amqp.options'] = [];
+        $app['amqp.queues'] = [];
+        $app['amqp.exchanges'] = [];
+        $app['amqp.ensure_topology'] = true;
     }
 
     public function boot(Application $app)
     {
-        if ($app['amqp_service.ensure_topology']) {
-            $this->ensureTopology($app['amqp_service.channel'], $app['amqp_service.definitions'] + [
-                'exchanges' => [],
-                'queues' => [],
-            ]);
+        if ($app['amqp.ensure_topology']) {
+            $this->ensureTopology(
+                $app['amqp.channel'],
+                $app['amqp.queues'],
+                $app['amqp.exchanges']
+            );
         }
     }
 
-    protected function ensureTopology($channel, $messageQueueDefinitions)
+    protected function ensureTopology($channel, $queues, $exchanges)
     {
-        $this->declareQueues($channel, $messageQueueDefinitions['queues']);
-        $this->declareExchanges($channel, $messageQueueDefinitions['exchanges']);
-        $this->bindQueues($channel, $messageQueueDefinitions['queues']);
+        $this->declareQueues($channel, $queues);
+        $this->declareExchanges($channel, $exchanges);
+        $this->bindQueues($channel, $queues);
     }
 
     protected function declareExchanges($channel, $exchanges)
