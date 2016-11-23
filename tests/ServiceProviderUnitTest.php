@@ -7,23 +7,19 @@ use PhpAmqpLib\Connection\AMQPChannel;
 
 class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 {
-    public function testRegistration()
-    {
-    }
-
-    public function mockChannel()
-    {
-        return $this->getMockBuilder(AMQPChannel::class)
-            ->setMethods(['exchange_declare', 'queue_declare', 'queue_bind'])
-            ->disableOriginalConstructor()
-            ->getMock();
-    }
-
-    public function testTopology()
+    public function initApp()
     {
         $app = new Application();
-        $serviceProvider = new ServiceProvider();
+        $app->register(new ServiceProvider());
+        $app['amqp.channel'] = $this->getMockBuilder('PhpAmqpLib\Channel\AMQPChannel')
+            ->disableOriginalConstructor()
+            ->getMock();
+        return $app;
+    }
 
+    public function testTopologyIgnore()
+    {
+        $app = $this->initApp();
 
         $app['amqp.ensure_topology'] = false;
         $app['amqp.exchanges'] = [
@@ -32,7 +28,6 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ],
         ];
         $app['amqp.queues'] = [];
-        $app['amqp.channel'] = $this->mockChannel();
         $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
@@ -45,13 +40,17 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $serviceProvider->boot($app);
+        $app->boot();
 
+    }
+
+    public function testTopologyEmpty()
+    {
+        $app = $this->initApp();
 
         $app['amqp.ensure_topology'] = true;
         $app['amqp.exchanges'] = [];
         $app['amqp.queues'] = [];
-        $app['amqp.channel'] = $this->mockChannel();
         $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
@@ -64,8 +63,12 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $serviceProvider->boot($app);
+        $app->boot();
+    }
 
+    public function testTopologyExchange()
+    {
+        $app = $this->initApp();
 
         $app['amqp.ensure_topology'] = true;
         $app['amqp.exchanges'] = [
@@ -74,7 +77,6 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ],
         ];
         $app['amqp.queues'] = [];
-        $app['amqp.channel'] = $this->mockChannel();
         $app['amqp.channel']
             ->expects($this->once())
             ->method('exchange_declare')
@@ -87,7 +89,12 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $serviceProvider->boot($app);
+        $app->boot();
+    }
+
+    public function testTopologyQueue()
+    {
+        $app = $this->initApp();
 
         $app['amqp.ensure_topology'] = true;
         $app['amqp.exchanges'] = [];
@@ -99,7 +106,6 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $app['amqp.channel'] = $this->mockChannel();
         $app['amqp.channel']
             ->expects($this->never())
             ->method('exchange_declare')
@@ -112,6 +118,28 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->once())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $serviceProvider->boot($app);
+        $app->boot();
+    }
+
+    public function testHelpers()
+    {
+        $app = $this->initApp();
+
+        $app['amqp.ensure_topology'] = false;
+        $app['amqp.exchanges'] = [
+            'test_exchange_2' => [],
+            'test_exchange_3' => [],
+            'test_exchange_1' => [],
+        ];
+        $app['amqp.queues'] = [
+            'test_queue_2' => [],
+            'test_queue_3' => [],
+            'test_queue_1' => [],
+        ];
+
+        $app->boot();
+
+        $this->assertEquals('test_exchange_2', $app['amqp.exchange_name'], 'Wrong exchange name returned');
+        $this->assertEquals('test_queue_2', $app['amqp.queue_name'], 'Wrong queue name returned');
     }
 }

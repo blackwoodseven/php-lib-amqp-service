@@ -43,6 +43,14 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
         $app['amqp.queues'] = [];
         $app['amqp.exchanges'] = [];
         $app['amqp.ensure_topology'] = true;
+
+        // Default queue and exchange shortcuts.
+        $app['amqp.queue_name'] = function () use ($app) {
+            return current(array_keys($app['amqp.queues']));
+        };
+        $app['amqp.exchange_name'] = function () use ($app) {
+            return current(array_keys($app['amqp.exchanges']));
+        };
     }
 
     public function boot(Application $app)
