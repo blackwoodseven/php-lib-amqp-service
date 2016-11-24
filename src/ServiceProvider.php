@@ -35,8 +35,14 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
         };
 
         $app['amqp.channel'] = function () use ($app) {
-            return $app['amqp.connection']->channel();
+            $channel = $app['amqp.connection']->channel();
+            return $channel;
         };
+        $app->extend('amqp.channel', function ($channel, Application $app) {
+            $this->declareQueues($channel, $this->queues);
+            $this->declareExchanges($channel, $app['amqp.exchanges']);
+            return $channel;
+        });
 
         // Default settings.
         $app['amqp.options'] = [];
@@ -46,17 +52,26 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
 
     public function boot(Application $app)
     {
-        $channel = $app['amqp.channel'];
-        $queues = [];
-        foreach ($app['amqp.queues'] as $name => $definition) {
-            $queues[$name] = new Queue($name, $definition, $app['amqp.options']['product']);
-            $queues[$name]->bind($channel);
+        $this->queues = $app['amqp.queues'];
+        foreach ($this->queues as &$definition) {
+            $definition += [
+                'arguments' => [],
+            ];
         }
-        $app['amqp.queues'] = $queues;
-        $app['amqp.queue'] = reset($queues);
+        $app['amqp.queues'] = function (Application $app) {
+            $channel = $app['amqp.channel'];
+            $queues = [];
+            foreach ($this->queues as $name => $definition) {
+                $queues[$name] = new Queue($name, $definition, $app['amqp.options']['product']);
+                $queues[$name]->bind($channel);
+            }
+            return $queues;
+        };
 
-        $this->declareQueues($channel, $app['amqp.queues']);
-        $this->declareExchanges($channel, $app['amqp.exchanges']);
+        $app['amqp.queue'] = function (Application $app) {
+            $name = current(array_keys($this->queues));
+            return $app['amqp.queues'][$name];
+        };
     }
 
     protected function declareExchanges($channel, $exchanges)

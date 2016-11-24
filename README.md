@@ -34,7 +34,9 @@ $app->register(new \BlackwoodSeven\AmqpService\ServiceProvider(), [
     ],
 ]);
 
-$default_queue_name = $app['amqp.queue_name'];
-$default_queue_definition = $app['amqp.queues'][$default_queue_name];
+$default_queue = $app['amqp.queue'];
 
+$default_queue->listenOnce(function () {
+    // do stuff...
+});
 ```
