@@ -42,33 +42,21 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
         $app['amqp.options'] = [];
         $app['amqp.queues'] = [];
         $app['amqp.exchanges'] = [];
-        $app['amqp.ensure_topology'] = true;
-
-        // Default queue and exchange shortcuts.
-        $app['amqp.queue_name'] = function () use ($app) {
-            return current(array_keys($app['amqp.queues']));
-        };
-        $app['amqp.exchange_name'] = function () use ($app) {
-            return current(array_keys($app['amqp.exchanges']));
-        };
     }
 
     public function boot(Application $app)
     {
-        if ($app['amqp.ensure_topology']) {
-            $this->ensureTopology(
-                $app['amqp.channel'],
-                $app['amqp.queues'],
-                $app['amqp.exchanges']
-            );
+        $channel = $app['amqp.channel'];
+        $queues = [];
+        foreach ($app['amqp.queues'] as $name => $definition) {
+            $queues[$name] = new Queue($name, $definition, $app['amqp.options']['product']);
+            $queues[$name]->bind($channel);
         }
-    }
+        $app['amqp.queues'] = $queues;
+        $app['amqp.queue'] = reset($queues);
 
-    protected function ensureTopology($channel, $queues, $exchanges)
-    {
-        $this->declareQueues($channel, $queues);
-        $this->declareExchanges($channel, $exchanges);
-        $this->bindQueues($channel, $queues);
+        $this->declareQueues($channel, $app['amqp.queues']);
+        $this->declareExchanges($channel, $app['amqp.exchanges']);
     }
 
     protected function declareExchanges($channel, $exchanges)
@@ -104,10 +92,6 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
      */
     protected function declareQueue($channel, $queueName, $definition)
     {
-        $definition += [
-            'arguments' => [],
-        ];
-
         $channel->queue_declare(
             $queueName,
             false, // passive; false => ignore if exchange already exists.
@@ -117,16 +101,5 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
             false, // nowait
             $definition['arguments']
         );
-    }
-
-    protected function bindQueues($channel, $queues)
-    {
-        foreach ($queues as $queueName => $definition) {
-            foreach ($definition['bindings'] as $exchangeName => $routingKeys) {
-                foreach ((array) $routingKeys as $routingKey) {
-                    $channel->queue_bind($queueName, $exchangeName, $routingKey);
-                }
-            }
-        }
     }
 }
