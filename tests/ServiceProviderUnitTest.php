@@ -1,55 +1,36 @@
 <?php
 namespace BlackwoodSeven\Tests\AmqpService;
 
-use Silex\Application;
+use Pimple\Container;
 use BlackwoodSeven\AmqpService\ServiceProvider;
 use PhpAmqpLib\Connection\AMQPChannel;
 
 class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 {
-    public function initApp()
+    public function mockContainer()
     {
-        $app = new Application();
-        $app->register(new ServiceProvider());
-        $app['amqp.channel'] = $this->getMockBuilder('PhpAmqpLib\Channel\AMQPChannel')
+        $container = new Container();
+        $container->register(new ServiceProvider());
+        $container['amqp.channel'] = $this->getMockBuilder('PhpAmqpLib\Channel\AMQPChannel')
             ->disableOriginalConstructor()
             ->getMock();
-        return $app;
+        return $container;
     }
 
-    public function testTopologyEmpty()
+    public function testQueueUninitialized()
     {
-        $app = $this->initApp();
+        $app = $this->mockContainer();
 
-        $app['amqp.exchanges'] = [];
-        $app['amqp.queues'] = [];
-        $app['amqp.channel']
-            ->expects($this->never())
-            ->method('exchange_declare')
-            ->will($this->returnValue(true));
-        $app['amqp.channel']
-            ->expects($this->never())
-            ->method('queue_declare')
-            ->will($this->returnValue(true));
-        $app['amqp.channel']
-            ->expects($this->never())
-            ->method('queue_bind')
-            ->will($this->returnValue(true));
-        $app->boot();
-    }
-
-    public function testTopologyExchange()
-    {
-        $app = $this->initApp();
-
-        $app['amqp.exchanges'] = [
-            'test_exchange' => [
-                'type' => 'topic',
+        $app['amqp.options'] = [
+            'product' => 'test',
+            'dsn' => 'tcp://none:none@localhost:1234',
+            'queues' => [
+                'testqueue' => ['bindings' => ['testexchange']]
             ],
         ];
-        $app['amqp.queues'] = [];
+
         $app['amqp.channel']
-            ->expects($this->once())
+            ->expects($this->never())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
         $app['amqp.channel']
@@ -60,25 +41,25 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->never())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $app->boot();
     }
 
-    public function testTopologyQueue()
+    public function testQueueListenOnce()
     {
-        $app = $this->initApp();
+        $app = $this->mockContainer();
 
-        $app['amqp.exchanges'] = [];
-        $app['amqp.options'] = ['product' => 'unittest'];
-        $app['amqp.queues'] = [
-            'test_queue' => [
-                'arguments' => [],
-                'bindings' => [
-                    'test_exchange' => ['routingkey1.test'],
-                ],
+        $app['amqp.options'] = [
+            'product' => 'test',
+            'dsn' => 'tcp://none:none@localhost:1234',
+            'exchanges' => [
+                'testexchange',
+            ],
+            'queues' => [
+                'testqueue' => ['bindings' => ['testexchange' => ['#']]]
             ],
         ];
+
         $app['amqp.channel']
-            ->expects($this->never())
+            ->expects($this->once())
             ->method('exchange_declare')
             ->will($this->returnValue(true));
         $app['amqp.channel']
@@ -89,7 +70,37 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->expects($this->once())
             ->method('queue_bind')
             ->will($this->returnValue(true));
-        $app->boot();
+
+        $app['amqp.queue']->listenOnce(function () {});
+        $app['amqp.queues']['testqueue']->listenOnce(function () {});
     }
 
+    public function testExchangePublish()
+    {
+        $app = $this->mockContainer();
+
+        $app['amqp.options'] = [
+            'product' => 'test',
+            'dsn' => 'tcp://none:none@localhost:1234',
+            'exchanges' => [
+                'testexchange',
+            ],
+        ];
+
+        $app['amqp.channel']
+            ->expects($this->once())
+            ->method('exchange_declare')
+            ->will($this->returnValue(true));
+        $app['amqp.channel']
+            ->expects($this->never())
+            ->method('queue_declare')
+            ->will($this->returnValue(true));
+        $app['amqp.channel']
+            ->expects($this->never())
+            ->method('queue_bind')
+            ->will($this->returnValue(true));
+
+        $app['amqp.exchange']->publish('routing.key', 'type', ['message' => 'test']);
+        $app['amqp.exchanges']['testexchange']->publish('routing.key', 'type', ['message' => 'test']);
+    }
 }

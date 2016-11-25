@@ -3,28 +3,41 @@ namespace BlackwoodSeven\AmqpService;
 
 use PhpAmqpLib\Connection\AMQPConnection;
 use Pimple\ServiceProviderInterface;
-use Silex\Api\BootableProviderInterface;
 use Pimple\Container;
-use Silex\Application;
 
-class ServiceProvider implements ServiceProviderInterface, BootableProviderInterface
+class ServiceProvider implements ServiceProviderInterface
 {
     public function register(Container $app)
     {
-        $app['amqp.connection'] = function () use ($app) {
-            $options = $app['amqp.options'];
+        $app['amqp.options.initializer'] = $app->protect(function () use ($app) {
+            static $initialized = false;
 
-            if (empty($options['product'])) {
+            if ($initialized) {
+                return;
+            }
+
+            $initialized = true;
+
+            $app['amqp.options'] += [
+                'queues' => [],
+                'exchanges' => [],
+            ];
+        });
+
+        $app['amqp.connection'] = function () use ($app) {
+            $app['amqp.options.initializer']();
+
+            if (empty($app['amqp.options']['product'])) {
                 throw new \InvalidArgumentException('AmqpService: "product" must be specified.');
             }
 
-            if (empty($options['dsn'])) {
+            if (empty($app['amqp.options']['dsn'])) {
                 throw new \InvalidArgumentException('AmqpService: "dsn" must be specified.');
             }
 
-            AMQPConnection::$LIBRARY_PROPERTIES['product'] = ['S', $options['product']];
+            AMQPConnection::$LIBRARY_PROPERTIES['product'] = ['S', $app['amqp.options']['product']];
 
-            $dsn = parse_url($options['dsn']);
+            $dsn = parse_url($app['amqp.options']['dsn']);
             return new AMQPConnection(
                 $dsn['host'],
                 $dsn['port'],
@@ -34,72 +47,76 @@ class ServiceProvider implements ServiceProviderInterface, BootableProviderInter
             );
         };
 
-        $app['amqp.channel'] = function () use ($app) {
+        $app['amqp.channel'] = function (Container $app) {
             return $app['amqp.connection']->channel();
+        };
+
+        // Provide exchanges through a DI container for singular lazy load.
+        $app['amqp.exchanges'] = function (Container $app) {
+            $app['amqp.options.initializer']();
+
+            $exchanges = new Container();
+            $firstExchangeName = null;
+            foreach ($app['amqp.options']['exchanges'] as $name => $definition) {
+                if (!is_array($definition)) {
+                    $name = $definition;
+                    $definition = [];
+                }
+                $firstExchangeName = $firstExchangeName ?? $name;
+                $exchanges[$name] = function () use ($name, $definition, $app) {
+                    $channel = $app['amqp.channel'];
+                    $exchange = new Exchange($name, $definition, $app['amqp.options']['product']);
+                    $exchange->declare($channel);
+                    return $exchange;
+                };
+            };
+            $app['amqp.exchange.default'] = $firstExchangeName;
+            return $exchanges;
+        };
+
+        // Provide the first exchange as the "default" exchange.
+        $app['amqp.exchange'] = function (Container $app) {
+            $exchanges = $app['amqp.exchanges'];
+            if (!$app['amqp.exchange.default']) {
+                throw new \RuntimeException('No exchanges defined.');
+            }
+            return $exchanges[$app['amqp.exchange.default']];
+        };
+
+        // Provide queues through a DI container for singular lazy load.
+        $app['amqp.queues'] = function (Container $app) {
+            $app['amqp.options.initializer']();
+
+            $firstQueueName = null;
+            $queues = new Container();
+            foreach ($app['amqp.options']['queues'] as $name => $definition) {
+                $firstQueueName = $firstQueueName ?? $name;
+                $queues[$name] = function () use ($name, $definition, $app) {
+                    $channel = $app['amqp.channel'];
+                    $queue = new Queue($name, $definition, $app['amqp.options']['product']);
+                    $queue->declare($channel);
+                    // Bind exchanges defined. This will also automatically
+                    // declare the exchange.
+                    foreach ($queue['bindings'] as $exchangeName => $routingKeys) {
+                        $queue->bind($channel, $app['amqp.exchanges'][$exchangeName], $routingKeys);
+                    }
+                    return $queue;
+                };
+            }
+            $app['amqp.queue.default'] = $firstQueueName;
+            return $queues;
+        };
+
+        // Provide the first queue as the "default" queue.
+        $app['amqp.queue'] = function (Container $app) {
+            $queues = $app['amqp.queues'];
+            if (!$app['amqp.queue.default']) {
+                throw new \RuntimeException('No queues defined.');
+            }
+            return $queues[$app['amqp.queue.default']];
         };
 
         // Default settings.
         $app['amqp.options'] = [];
-        $app['amqp.queues'] = [];
-        $app['amqp.exchanges'] = [];
-    }
-
-    public function boot(Application $app)
-    {
-        $channel = $app['amqp.channel'];
-        $queues = [];
-        foreach ($app['amqp.queues'] as $name => $definition) {
-            $queues[$name] = new Queue($name, $definition, $app['amqp.options']['product']);
-            $queues[$name]->bind($channel);
-        }
-        $app['amqp.queues'] = $queues;
-        $app['amqp.queue'] = reset($queues);
-
-        $this->declareQueues($channel, $app['amqp.queues']);
-        $this->declareExchanges($channel, $app['amqp.exchanges']);
-    }
-
-    protected function declareExchanges($channel, $exchanges)
-    {
-        foreach ($exchanges as $exchangeName => $definition) {
-            $this->declareExchange($channel, $exchangeName, $definition);
-        }
-    }
-
-    /**
-     * @throws AMQPProtocolException if exchange has already been defined with different parameters
-     */
-    protected function declareExchange($channel, $exchangeName, $definition)
-    {
-        $channel->exchange_declare(
-            $exchangeName,
-            $definition['type'], // "topic", "fanout" etc.
-            false, // passive; false => ignore if exchange already exists.
-            true, // durable
-            false // auto_delete
-        );
-    }
-
-    protected function declareQueues($channel, $queues)
-    {
-        foreach ($queues as $queueName => $definition) {
-            $this->declareQueue($channel, $queueName, $definition);
-        }
-    }
-
-    /**
-     * @throws AMQPProtocolException if queue has already been defined with different parameters
-     */
-    protected function declareQueue($channel, $queueName, $definition)
-    {
-        $channel->queue_declare(
-            $queueName,
-            false, // passive; false => ignore if exchange already exists.
-            true, // durable
-            false, // exclusive
-            false, // auto_delete
-            false, // nowait
-            $definition['arguments']
-        );
     }
 }
