@@ -2,10 +2,7 @@
 namespace BlackwoodSeven\AmqpService;
 
 use PhpAmqpLib\Connection\AMQPConnection;
-use Pimple\ServiceProviderInterface;
-use Silex\Api\BootableProviderInterface;
-use Pimple\Container;
-use Silex\Application;
+use PhpAmqpLib\Channel\AMQPChannel;
 
 class Queue implements \ArrayAccess
 {
@@ -17,17 +14,42 @@ class Queue implements \ArrayAccess
     public function __construct($name, array $definition, $appId = '')
     {
         $this->name = $name;
-        $this->definition = $definition + ['arguments' => []];
+        $this->definition = $definition + [
+            'passive' => false,         // passive; false => ignore if exchange already exists.
+            'durable' => true,          // durable
+            'exclusive' => false,       // exclusive
+            'auto_delete' => false,     // auto_delete
+            'nowait' => false,          // nowait
+            'arguments' => [],
+            'bindings' => [],
+        ];
         $this->appId = $appId;
     }
 
-    public function bind($channel)
+    public function getName()
+    {
+        return $this->name;
+    }
+
+    public function declare(AMQPChannel $channel)
+    {
+        $channel->queue_declare(
+            $this->name,
+            $this->definition['passive'],
+            $this->definition['durable'],
+            $this->definition['exclusive'],
+            $this->definition['auto_delete'],
+            $this->definition['nowait'],
+            $this->definition['arguments']
+        );
+    }
+
+    public function bind(AMQPChannel $channel, Exchange $exchange, $routingKeys)
     {
         $this->channel = $channel;
-        foreach ($this->definition['bindings'] as $exchangeName => $routingKeys) {
-            foreach ((array) $routingKeys as $routingKey) {
-                $channel->queue_bind($this->name, $exchangeName, $routingKey);
-            }
+        $exchangeName = $exchange->getName();
+        foreach ((array) $routingKeys as $routingKey) {
+            $channel->queue_bind($this->name, $exchangeName, $routingKey);
         }
         return $this;
     }
