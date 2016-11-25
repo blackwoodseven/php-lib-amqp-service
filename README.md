@@ -34,7 +34,22 @@ $app->register(new \BlackwoodSeven\AmqpService\ServiceProvider(), [
     ],
 ]);
 
-$default_queue_name = $app['amqp.queue_name'];
-$default_queue_definition = $app['amqp.queues'][$default_queue_name];
+$default_queue = $app['amqp.queue'];
+
+$default_queue->listenOnce(function () {
+    // do stuff...
+});
+
+$app['amqp.queues']['another_queue']listenOnce(function () {
+    // do stuff...
+});
+
+
+
+$default_exchange = $app['amqp.exchange'];
+
+$default_exchange->publish('my.routing.key', 'my_type', ['message' => 'hello world']);
+
+$app['amqp.exchanges']['another_exchange']->publish('my.routing.key', 'my_type', ['message' => 'hello world']);
 
 ```
