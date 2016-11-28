@@ -3,7 +3,6 @@ namespace BlackwoodSeven\Tests\AmqpService;
 
 use Pimple\Container;
 use BlackwoodSeven\AmqpService\ServiceProvider;
-use PhpAmqpLib\Connection\AMQPChannel;
 
 class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 {
@@ -11,9 +10,13 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
     {
         $container = new Container();
         $container->register(new ServiceProvider());
+        $container['amqp.connection'] = $this->getMockBuilder('PhpAmqpLib\Connection\AMQPLazyConnection')
+            ->disableOriginalConstructor()
+            ->getMock();
         $container['amqp.channel'] = $this->getMockBuilder('PhpAmqpLib\Channel\AMQPChannel')
             ->disableOriginalConstructor()
             ->getMock();
+        $container['amqp.connection']->method('channel')->willReturn($container['amqp.channel']);
         return $container;
     }
 
@@ -23,7 +26,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'queues' => [
                 'testqueue' => ['bindings' => ['testexchange']]
             ],
@@ -49,7 +52,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'exchanges' => [
                 'testexchange',
             ],
@@ -81,7 +84,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'exchanges' => [
                 'testexchange',
             ],

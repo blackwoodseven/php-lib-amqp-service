@@ -1,19 +1,20 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPConnection;
-use PhpAmqpLib\Channel\AMQPChannel;
+use PhpAmqpLib\Connection\AMQPLazyConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 
 class Exchange implements \ArrayAccess
 {
     private $name;
     private $definition;
+    private $connection;
     private $channel;
     private $appId;
 
-    public function __construct($name, array $definition, $appId)
+    public function __construct(AMQPLazyConnection $connection, $name, array $definition, $appId)
     {
+        $this->connection = $connection;
         $this->name = $name;
         $this->definition = $definition + [
             'type' => 'topic',      // "topic", "fanout" etc.
@@ -30,20 +31,23 @@ class Exchange implements \ArrayAccess
     }
 
 
-    public function declare(AMQPChannel $channel)
+    public function declare()
     {
-        $this->channel = $channel;
-        $channel->exchange_declare(
-            $this->name,
-            $this->definition['type'],
-            $this->definition['passive'],
-            $this->definition['durable'],
-            $this->definition['auto_delete']
-        );
+        if (!isset($this->channel)) {
+            $this->channel = $this->connection->channel();
+            $this->channel->exchange_declare(
+                $this->name,
+                $this->definition['type'],
+                $this->definition['passive'],
+                $this->definition['durable'],
+                $this->definition['auto_delete']
+            );
+        }
     }
 
     public function publish($routingKey, $type, $payload)
     {
+        $this->declare();
         $json = json_encode($payload);
         $message = new AMQPMessage(
             $json,
