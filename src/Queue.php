@@ -7,11 +7,10 @@ class Queue implements \ArrayAccess
 {
     private $name;
     private $definition;
-    private $appId;
     private $connection;
     private $channel;
 
-    public function __construct(AMQPLazyConnection $connection, $name, array $definition, $appId = '')
+    public function __construct(AMQPLazyConnection $connection, $name, array $definition)
     {
         $this->connection = $connection;
         $this->name = $name;
@@ -24,7 +23,6 @@ class Queue implements \ArrayAccess
             'arguments' => [],
             'bindings' => [],
         ];
-        $this->appId = $appId;
     }
 
     public function getName()
@@ -61,7 +59,7 @@ class Queue implements \ArrayAccess
     }
 
 
-    public function listen(callable $callback, $no_local = false, $no_ack = false, $exclusive = false, $nowait = false)
+    public function listen(callable $callback, $consumer_tag = '', $no_local = false, $no_ack = false, $exclusive = false, $nowait = false)
     {
         $this->declare();
         if (!$this->channel) {
@@ -69,7 +67,7 @@ class Queue implements \ArrayAccess
         }
         $this->channel->basic_consume(
             $this->name,
-            $this->appId,
+            $consumer_tag,
             $no_local,
             $no_ack,
             $exclusive,

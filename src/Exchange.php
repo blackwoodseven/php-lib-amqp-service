@@ -10,9 +10,8 @@ class Exchange implements \ArrayAccess
     private $definition;
     private $connection;
     private $channel;
-    private $appId;
 
-    public function __construct(AMQPLazyConnection $connection, $name, array $definition, $appId)
+    public function __construct(AMQPLazyConnection $connection, $name, array $definition)
     {
         $this->connection = $connection;
         $this->name = $name;
@@ -22,7 +21,6 @@ class Exchange implements \ArrayAccess
             'durable' => true,      // durable
             'auto_delete' => false, // auto_delete
         ];
-        $this->appId = $appId;
     }
 
     public function getName()
@@ -45,24 +43,16 @@ class Exchange implements \ArrayAccess
         }
     }
 
-    public function publish($routingKey, $type, $payload)
+    public function basic_publish(
+        AMQPMessage $msg,
+        $routing_key = '',
+        $mandatory = false,
+        $immediate = false,
+        $ticket = null
+    )
     {
         $this->declare();
-        $json = json_encode($payload);
-        $message = new AMQPMessage(
-            $json,
-            [
-                'type' => $type,
-                'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
-                'app_id' => $this->appId,
-                'content_type' => 'application/json',
-            ]
-        );
-        $this->channel->basic_publish(
-            $message,
-            $this->name,
-            $routingKey
-        );
+        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
     }
 
     /**

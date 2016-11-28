@@ -3,6 +3,7 @@ namespace BlackwoodSeven\Tests\AmqpService;
 
 use Pimple\Container;
 use BlackwoodSeven\AmqpService\ServiceProvider;
+use PhpAmqpLib\Message\AMQPMessage;
 
 class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 {
@@ -103,7 +104,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->method('queue_bind')
             ->will($this->returnValue(true));
 
-        $app['amqp.exchange']->publish('routing.key', 'type', ['message' => 'test']);
-        $app['amqp.exchanges']['testexchange']->publish('routing.key', 'type', ['message' => 'test']);
+        $app['amqp.exchange']->basic_publish(new AMQPMessage(['message' => 'test']), 'routing.key');
+        $app['amqp.exchanges']['testexchange']->basic_publish(new AMQPMessage(['message' => 'test']), 'routing.key');
     }
 }
