@@ -104,7 +104,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->method('queue_bind')
             ->will($this->returnValue(true));
 
-        $app['amqp.exchange']->basic_publish(new AMQPMessage(['message' => 'test']), 'routing.key');
-        $app['amqp.exchanges']['testexchange']->basic_publish(new AMQPMessage(['message' => 'test']), 'routing.key');
+        $app['amqp.exchange']->publish(new AMQPMessage(['message' => 'test']), 'routing.key');
+        $app['amqp.exchanges']['testexchange']->publish(new AMQPMessage(['message' => 'test']), 'routing.key');
     }
 }
