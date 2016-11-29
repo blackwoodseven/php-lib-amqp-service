@@ -43,7 +43,7 @@ class Exchange implements \ArrayAccess
         }
     }
 
-    public function basic_publish(
+    public function publish(
         AMQPMessage $msg,
         $routing_key = '',
         $mandatory = false,

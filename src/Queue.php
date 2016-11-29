@@ -45,17 +45,27 @@ class Queue implements \ArrayAccess
             );
             foreach ($this->bindings as $info) {
                 list ($exchange, $routingKeys) = $info;
-                $exchange->declare();
-                foreach ((array) $routingKeys as $routingKey) {
-                    $this->channel->queue_bind($this->name, $exchange->getName(), $routingKey);
-                }
+                $this->bindQueue($exchange, $routingKeys);
             }
+        }
+    }
+
+    private function bindQueue(Exchange $exchange, array $routingKeys)
+    {
+        $exchange->declare();
+        foreach ($routingKeys as $routingKey) {
+            $this->channel->queue_bind($this->name, $exchange->getName(), $routingKey);
         }
     }
 
     public function bind(Exchange $exchange, $routingKeys)
     {
-        $this->bindings[$exchange->getName()] = [$exchange, $routingKeys];
+        if (!$this->channel) {
+            $this->bindings[$exchange->getName()] = [$exchange, $routingKeys];
+        }
+        else {
+            $this->bindQueue($exchange, $routingKeys);
+        }
     }
 
 
