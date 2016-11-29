@@ -11,7 +11,17 @@ class Exchange implements \ArrayAccess
     private $connection;
     private $channel;
 
-    public function __construct(AMQPLazyConnection $connection, $name, array $definition)
+    /**
+     * Constructor.
+     *
+     * @param AMQPLazyConnection $connection
+     *   An AMQP lazy connection.
+     * @param string $name
+     *   Name of the exchange.
+     * @param array $definition
+     *   The definition of the exchange.
+     */
+    public function __construct(AMQPLazyConnection $connection, string $name, array $definition)
     {
         $this->connection = $connection;
         $this->name = $name;
@@ -23,12 +33,37 @@ class Exchange implements \ArrayAccess
         ];
     }
 
-    public function getName()
+    /**
+     * Get name of exchange.
+     *
+     * @return string
+     *   The name of the exchange.
+     */
+    public function getName(): string
     {
         return $this->name;
     }
 
+    /**
+     * Publish a message to the exchange.
+     *
+     * @see AMQPChannel::basic_publish()
+     */
+    public function publish(
+        AMQPMessage $msg,
+        $routing_key = '',
+        $mandatory = false,
+        $immediate = false,
+        $ticket = null
+    )
+    {
+        $this->declare();
+        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
+    }
 
+    /**
+     * Declare the exchange if not already declared.
+     */
     public function declare()
     {
         if (!isset($this->channel)) {
@@ -41,18 +76,6 @@ class Exchange implements \ArrayAccess
                 $this->definition['auto_delete']
             );
         }
-    }
-
-    public function publish(
-        AMQPMessage $msg,
-        $routing_key = '',
-        $mandatory = false,
-        $immediate = false,
-        $ticket = null
-    )
-    {
-        $this->declare();
-        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
     }
 
     /**
