@@ -64,7 +64,7 @@ class ServiceProvider implements ServiceProviderInterface
                 }
                 $firstExchangeName = $firstExchangeName ?? $name;
                 $exchanges[$name] = function () use ($name, $definition, $app) {
-                    return new Exchange($app['amqp.connection'], $name, $definition, $app['amqp.options']['product']);
+                    return new Exchange($app['amqp.channel'], $name, $definition);
                 };
             };
             $app['amqp.exchange.default'] = $firstExchangeName;
@@ -89,7 +89,7 @@ class ServiceProvider implements ServiceProviderInterface
             foreach ($app['amqp.options']['queues'] as $name => $definition) {
                 $firstQueueName = $firstQueueName ?? $name;
                 $queues[$name] = function () use ($name, $definition, $app) {
-                    $queue = new Queue($app['amqp.connection'], $name, $definition, $app['amqp.options']['product']);
+                    $queue = new Queue($app['amqp.channel'], $name, $definition);
                     // Bind exchanges defined. This will also automatically
                     // declare the exchange.
                     foreach ($queue['bindings'] as $exchangeName => $routingKeys) {

@@ -1,29 +1,28 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPLazyConnection;
+use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 class Exchange implements \ArrayAccess
 {
     private $name;
     private $definition;
-    private $connection;
     private $channel;
 
     /**
      * Constructor.
      *
-     * @param AMQPLazyConnection $connection
-     *   An AMQP lazy connection.
+     * @param AMQPChannel $channel
+     *   An AMQP channel.
      * @param string $name
      *   Name of the exchange.
      * @param array $definition
      *   The definition of the exchange.
      */
-    public function __construct(AMQPLazyConnection $connection, string $name, array $definition)
+    public function __construct(AMQPChannel $channel, string $name, array $definition)
     {
-        $this->connection = $connection;
+        $this->channel = $channel;
         $this->name = $name;
         $this->definition = $definition + [
             'type' => 'topic',      // "topic", "fanout" etc.
@@ -31,6 +30,14 @@ class Exchange implements \ArrayAccess
             'durable' => true,      // durable
             'auto_delete' => false, // auto_delete
         ];
+
+        $this->channel->exchange_declare(
+            $this->name,
+            $this->definition['type'],
+            $this->definition['passive'],
+            $this->definition['durable'],
+            $this->definition['auto_delete']
+        );
     }
 
     /**
@@ -57,25 +64,7 @@ class Exchange implements \ArrayAccess
         $ticket = null
     )
     {
-        $this->declare();
         return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
-    }
-
-    /**
-     * Declare the exchange if not already declared.
-     */
-    public function declare()
-    {
-        if (!isset($this->channel)) {
-            $this->channel = $this->connection->channel();
-            $this->channel->exchange_declare(
-                $this->name,
-                $this->definition['type'],
-                $this->definition['passive'],
-                $this->definition['durable'],
-                $this->definition['auto_delete']
-            );
-        }
     }
 
     /**

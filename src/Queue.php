@@ -1,28 +1,27 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPLazyConnection;
+use PhpAmqpLib\Channel\AMQPChannel;
 
 class Queue implements \ArrayAccess
 {
     private $name;
     private $definition;
-    private $connection;
     private $channel;
 
     /**
      * Constructor.
      *
-     * @param AMQPLazyConnection $connection
-     *   An AMQP lazy connection.
+     * @param AMQPChannel $channel
+     *   An AMQP channel.
      * @param string $name
      *   Name of the queue.
      * @param array $definition
      *   The definition of the queue.
      */
-    public function __construct(AMQPLazyConnection $connection, string $name, array $definition)
+    public function __construct(AMQPChannel $channel, string $name, array $definition)
     {
-        $this->connection = $connection;
+        $this->channel = $channel;
         $this->name = $name;
         $this->definition = $definition + [
             'passive' => false,         // passive; false => ignore if queue already exists.
@@ -33,15 +32,25 @@ class Queue implements \ArrayAccess
             'arguments' => [],
             'bindings' => [],
         ];
+
+        $this->channel->queue_declare(
+            $this->name,
+            $this->definition['passive'],
+            $this->definition['durable'],
+            $this->definition['exclusive'],
+            $this->definition['auto_delete'],
+            $this->definition['nowait'],
+            $this->definition['arguments']
+        );
     }
 
     /**
-     * Get name of exchange.
+     * Get name of queue.
      *
      * @return string
-     *   The name of the exchange.
+     *   The name of the queue.
      */
-    public function getName()
+    public function getName(): string
     {
         return $this->name;
     }
@@ -49,21 +58,15 @@ class Queue implements \ArrayAccess
     /**
      * Bind to an exchange.
      *
-     * If queue has not been declared yet, bind will be postponed until it is
-     * declared.
-     *
      * @param  Exchange $exchange
      *   The exchange to bind to,
      * @param array  $routingKeys
      *   The routing keys to bind.
      */
-    public function bind(Exchange $exchange, $routingKeys)
+    public function bind(Exchange $exchange, array $routingKeys)
     {
-        if (!$this->channel) {
-            $this->bindings[$exchange->getName()] = [$exchange, $routingKeys];
-        }
-        else {
-            $this->bindQueue($exchange, $routingKeys);
+        foreach ($routingKeys as $routingKey) {
+            $this->channel->queue_bind($this->name, $exchange->getName(), $routingKey);
         }
     }
 
@@ -74,7 +77,6 @@ class Queue implements \ArrayAccess
      */
     public function listen(callable $callback, $consumer_tag = '', $no_local = false, $no_ack = false, $exclusive = false, $nowait = false)
     {
-        $this->declare();
         if (!$this->channel) {
             throw new \Exception('unbound');
         }
@@ -100,52 +102,9 @@ class Queue implements \ArrayAccess
      */
     public function listenOnce(callable $callback, $no_ack = false)
     {
-        $this->declare();
-        if (!$this->channel) {
-            throw new \Exception('unbound');
-        }
         while ($msg = $this->channel->basic_get($this->name, $no_ack)) {
             $msg->delivery_info['channel'] = $this->channel;
             $callback($msg);
-        }
-    }
-
-    /**
-     * Declare the exchange and bind to exchanges if not already declared.
-     */
-    public function declare()
-    {
-        if (!isset($this->channel)) {
-            $this->channel = $this->connection->channel();
-            $this->channel->queue_declare(
-                $this->name,
-                $this->definition['passive'],
-                $this->definition['durable'],
-                $this->definition['exclusive'],
-                $this->definition['auto_delete'],
-                $this->definition['nowait'],
-                $this->definition['arguments']
-            );
-            foreach ($this->bindings as $info) {
-                list ($exchange, $routingKeys) = $info;
-                $this->bindQueue($exchange, $routingKeys);
-            }
-        }
-    }
-
-    /**
-     * Actual bind to an exchange.
-     *
-     * @param  Exchange $exchange
-     *   The exchange to bind to,
-     * @param array  $routingKeys
-     *   The routing keys to bind.
-     */
-    private function bindQueue(Exchange $exchange, array $routingKeys)
-    {
-        $exchange->declare();
-        foreach ($routingKeys as $routingKey) {
-            $this->channel->queue_bind($this->name, $exchange->getName(), $routingKey);
         }
     }
 
