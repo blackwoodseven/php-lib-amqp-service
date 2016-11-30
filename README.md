@@ -34,11 +34,11 @@ $app->register(new \BlackwoodSeven\AmqpService\ServiceProvider(), [
 
 $default_queue = $app['amqp.queue'];
 
-$default_queue->listenOnce(function () {
+$default_queue->listenOnce(function (\PhpAmqpLib\Message\AMQPMessage $msg) {
     // do stuff...
 });
 
-$app['amqp.queue']['another_queue']->listenOnce(function () {
+$app['amqp.queue']['another_queue']->listenOnce(function (\PhpAmqpLib\Message\AMQPMessage $msg) {
     // do stuff...
 });
 
@@ -46,8 +46,14 @@ $app['amqp.queue']['another_queue']->listenOnce(function () {
 
 $default_exchange = $app['amqp.exchange'];
 
-$default_exchange->publish('my.routing.key', 'my_type', ['message' => 'hello world']);
+$default_exchange->publish(
+    new \PhpAmqpLib\Message\AMQPMessage('Hello world'),
+    'my.routing.key'
+);
 
-$app['amqp.exchange']['another_exchange']->publish('my.routing.key', 'my_type', ['message' => 'hello world']);
+$app['amqp.exchange']['another_exchange']->publish(
+    new \PhpAmqpLib\Message\AMQPMessage('Hello world'),
+    'my.routing.key'
+);
 
 ```
