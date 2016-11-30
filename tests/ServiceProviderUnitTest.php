@@ -11,13 +11,9 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
     {
         $container = new Container();
         $container->register(new ServiceProvider());
-        $container['amqp.connection'] = $this->getMockBuilder('PhpAmqpLib\Connection\AMQPLazyConnection')
-            ->disableOriginalConstructor()
-            ->getMock();
         $container['amqp.channel'] = $this->getMockBuilder('PhpAmqpLib\Channel\AMQPChannel')
             ->disableOriginalConstructor()
             ->getMock();
-        $container['amqp.connection']->method('channel')->willReturn($container['amqp.channel']);
         return $container;
     }
 
