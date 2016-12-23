@@ -68,6 +68,28 @@ class Exchange implements \ArrayAccess
     }
 
     /**
+     * Publish a message to the exchange.
+     *
+     * @see AMQPChannel::basic_publish()
+     */
+    public function publishJson(
+        $data,
+        $routing_key = '',
+        array $options = [],
+        $mandatory = false,
+        $immediate = false,
+        $ticket = null
+    )
+    {
+        $options += [
+            'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
+            'content_type' => 'application/json',
+        ];
+        $msg = new AMQPMessage(json_encode($data), $options);
+        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
+    }
+
+    /**
      * from \ArrayAccess
      */
     public function offsetExists($offset)
