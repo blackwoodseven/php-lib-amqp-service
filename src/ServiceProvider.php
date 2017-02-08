@@ -37,7 +37,7 @@ class ServiceProvider implements ServiceProviderInterface
 
             AMQPLazyConnection::$LIBRARY_PROPERTIES['product'] = ['S', $app['amqp.options']['product']];
 
-            $dsn = parse_url($app['amqp.options']['dsn']);
+            $dsn = parse_url($app['amqp.options']['dsn']) + ['port' => 15672, 'user' => null, 'pass' => null, 'path' => '//'];
             return new AMQPLazyConnection(
                 $dsn['host'],
                 $dsn['port'],
