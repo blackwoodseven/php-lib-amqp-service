@@ -1,7 +1,6 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -10,10 +9,20 @@ class Exchange implements \ArrayAccess
     private $name;
     private $definition;
     private $channel;
-    private $appId;
 
-    public function __construct($name, array $definition, $appId)
+    /**
+     * Constructor.
+     *
+     * @param AMQPChannel $channel
+     *   An AMQP channel.
+     * @param string $name
+     *   Name of the exchange.
+     * @param array $definition
+     *   The definition of the exchange.
+     */
+    public function __construct(AMQPChannel $channel, string $name, array $definition)
     {
+        $this->channel = $channel;
         $this->name = $name;
         $this->definition = $definition + [
             'type' => 'topic',      // "topic", "fanout" etc.
@@ -21,19 +30,8 @@ class Exchange implements \ArrayAccess
             'durable' => true,      // durable
             'auto_delete' => false, // auto_delete
         ];
-        $this->appId = $appId;
-    }
 
-    public function getName()
-    {
-        return $this->name;
-    }
-
-
-    public function declare(AMQPChannel $channel)
-    {
-        $this->channel = $channel;
-        $channel->exchange_declare(
+        $this->channel->exchange_declare(
             $this->name,
             $this->definition['type'],
             $this->definition['passive'],
@@ -42,23 +40,53 @@ class Exchange implements \ArrayAccess
         );
     }
 
-    public function publish($routingKey, $type, $payload)
+    /**
+     * Get name of exchange.
+     *
+     * @return string
+     *   The name of the exchange.
+     */
+    public function getName(): string
     {
-        $json = json_encode($payload);
-        $message = new AMQPMessage(
-            $json,
-            [
-                'type' => $type,
-                'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
-                'app_id' => $this->appId,
-                'content_type' => 'application/json',
-            ]
-        );
-        $this->channel->basic_publish(
-            $message,
-            $this->name,
-            $routingKey
-        );
+        return $this->name;
+    }
+
+    /**
+     * Publish a message to the exchange.
+     *
+     * @see AMQPChannel::basic_publish()
+     */
+    public function publish(
+        AMQPMessage $msg,
+        $routing_key = '',
+        $mandatory = false,
+        $immediate = false,
+        $ticket = null
+    )
+    {
+        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
+    }
+
+    /**
+     * Publish a message to the exchange.
+     *
+     * @see AMQPChannel::basic_publish()
+     */
+    public function publishJson(
+        $data,
+        $routing_key = '',
+        array $options = [],
+        $mandatory = false,
+        $immediate = false,
+        $ticket = null
+    )
+    {
+        $options += [
+            'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
+            'content_type' => 'application/json',
+        ];
+        $msg = new AMQPMessage(json_encode($data), $options);
+        return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
     }
 
     /**

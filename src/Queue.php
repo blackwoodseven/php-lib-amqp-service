@@ -1,21 +1,30 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPConnection;
 use PhpAmqpLib\Channel\AMQPChannel;
 
 class Queue implements \ArrayAccess
 {
     private $name;
     private $definition;
-    private $appId;
     private $channel;
 
-    public function __construct($name, array $definition, $appId = '')
+    /**
+     * Constructor.
+     *
+     * @param AMQPChannel $channel
+     *   An AMQP channel.
+     * @param string $name
+     *   Name of the queue.
+     * @param array $definition
+     *   The definition of the queue.
+     */
+    public function __construct(AMQPChannel $channel, string $name, array $definition)
     {
+        $this->channel = $channel;
         $this->name = $name;
         $this->definition = $definition + [
-            'passive' => false,         // passive; false => ignore if exchange already exists.
+            'passive' => false,         // passive; false => ignore if queue already exists.
             'durable' => true,          // durable
             'exclusive' => false,       // exclusive
             'auto_delete' => false,     // auto_delete
@@ -23,17 +32,8 @@ class Queue implements \ArrayAccess
             'arguments' => [],
             'bindings' => [],
         ];
-        $this->appId = $appId;
-    }
 
-    public function getName()
-    {
-        return $this->name;
-    }
-
-    public function declare(AMQPChannel $channel)
-    {
-        $channel->queue_declare(
+        $this->channel->queue_declare(
             $this->name,
             $this->definition['passive'],
             $this->definition['durable'],
@@ -44,25 +44,45 @@ class Queue implements \ArrayAccess
         );
     }
 
-    public function bind(AMQPChannel $channel, Exchange $exchange, $routingKeys)
+    /**
+     * Get name of queue.
+     *
+     * @return string
+     *   The name of the queue.
+     */
+    public function getName(): string
     {
-        $this->channel = $channel;
-        $exchangeName = $exchange->getName();
-        foreach ((array) $routingKeys as $routingKey) {
-            $channel->queue_bind($this->name, $exchangeName, $routingKey);
-        }
-        return $this;
+        return $this->name;
     }
 
+    /**
+     * Bind to an exchange.
+     *
+     * @param  Exchange $exchange
+     *   The exchange to bind to,
+     * @param array  $routingKeys
+     *   The routing keys to bind.
+     */
+    public function bind(Exchange $exchange, array $routingKeys)
+    {
+        foreach ($routingKeys as $routingKey) {
+            $this->channel->queue_bind($this->name, $exchange->getName(), $routingKey);
+        }
+    }
 
-    public function listen(callable $callback, $no_local = false, $no_ack = false, $exclusive = false, $nowait = false)
+    /**
+     * Listen to a queue.
+     *
+     * @see AMQPChannel::basic_consume()
+     */
+    public function listen(callable $callback, $consumer_tag = '', $no_local = false, $no_ack = false, $exclusive = false, $nowait = false)
     {
         if (!$this->channel) {
             throw new \Exception('unbound');
         }
         $this->channel->basic_consume(
             $this->name,
-            $this->appId,
+            $consumer_tag,
             $no_local,
             $no_ack,
             $exclusive,
@@ -75,12 +95,14 @@ class Queue implements \ArrayAccess
         }
     }
 
-    public function listenOnce(callable $callback)
+    /**
+     * Listen to the queue once.
+     *
+     * @see AMQPChannel::basic_get().
+     */
+    public function listenOnce(callable $callback, $no_ack = false)
     {
-        if (!$this->channel) {
-            throw new \Exception('unbound');
-        }
-        while ($msg = $this->channel->basic_get($this->name)) {
+        while ($msg = $this->channel->basic_get($this->name, $no_ack)) {
             $msg->delivery_info['channel'] = $this->channel;
             $callback($msg);
         }

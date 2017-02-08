@@ -1,7 +1,7 @@
 <?php
 namespace BlackwoodSeven\AmqpService;
 
-use PhpAmqpLib\Connection\AMQPConnection;
+use PhpAmqpLib\Connection\AMQPLazyConnection;
 use Pimple\ServiceProviderInterface;
 use Pimple\Container;
 
@@ -35,10 +35,10 @@ class ServiceProvider implements ServiceProviderInterface
                 throw new \InvalidArgumentException('AmqpService: "dsn" must be specified.');
             }
 
-            AMQPConnection::$LIBRARY_PROPERTIES['product'] = ['S', $app['amqp.options']['product']];
+            AMQPLazyConnection::$LIBRARY_PROPERTIES['product'] = ['S', $app['amqp.options']['product']];
 
             $dsn = parse_url($app['amqp.options']['dsn']);
-            return new AMQPConnection(
+            return new AMQPLazyConnection(
                 $dsn['host'],
                 $dsn['port'],
                 $dsn['user'],
@@ -64,10 +64,7 @@ class ServiceProvider implements ServiceProviderInterface
                 }
                 $firstExchangeName = $firstExchangeName ?? $name;
                 $exchanges[$name] = function () use ($name, $definition, $app) {
-                    $channel = $app['amqp.channel'];
-                    $exchange = new Exchange($name, $definition, $app['amqp.options']['product']);
-                    $exchange->declare($channel);
-                    return $exchange;
+                    return new Exchange($app['amqp.channel'], $name, $definition);
                 };
             };
             $app['amqp.exchange.default'] = $firstExchangeName;
@@ -92,13 +89,11 @@ class ServiceProvider implements ServiceProviderInterface
             foreach ($app['amqp.options']['queues'] as $name => $definition) {
                 $firstQueueName = $firstQueueName ?? $name;
                 $queues[$name] = function () use ($name, $definition, $app) {
-                    $channel = $app['amqp.channel'];
-                    $queue = new Queue($name, $definition, $app['amqp.options']['product']);
-                    $queue->declare($channel);
+                    $queue = new Queue($app['amqp.channel'], $name, $definition);
                     // Bind exchanges defined. This will also automatically
                     // declare the exchange.
                     foreach ($queue['bindings'] as $exchangeName => $routingKeys) {
-                        $queue->bind($channel, $app['amqp.exchanges'][$exchangeName], $routingKeys);
+                        $queue->bind($app['amqp.exchanges'][$exchangeName], $routingKeys);
                     }
                     return $queue;
                 };

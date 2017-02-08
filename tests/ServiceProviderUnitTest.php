@@ -3,7 +3,7 @@ namespace BlackwoodSeven\Tests\AmqpService;
 
 use Pimple\Container;
 use BlackwoodSeven\AmqpService\ServiceProvider;
-use PhpAmqpLib\Connection\AMQPChannel;
+use PhpAmqpLib\Message\AMQPMessage;
 
 class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 {
@@ -23,7 +23,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'queues' => [
                 'testqueue' => ['bindings' => ['testexchange']]
             ],
@@ -49,7 +49,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'exchanges' => [
                 'testexchange',
             ],
@@ -81,7 +81,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
 
         $app['amqp.options'] = [
             'product' => 'test',
-            'dsn' => 'tcp://none:none@localhost:1234',
+            'dsn' => 'tcp://none:none@localhost:1234/novhost',
             'exchanges' => [
                 'testexchange',
             ],
@@ -100,7 +100,7 @@ class ServiceProviderUnitTest extends \PHPUnit_Framework_TestCase
             ->method('queue_bind')
             ->will($this->returnValue(true));
 
-        $app['amqp.exchange']->publish('routing.key', 'type', ['message' => 'test']);
-        $app['amqp.exchanges']['testexchange']->publish('routing.key', 'type', ['message' => 'test']);
+        $app['amqp.exchange']->publish(new AMQPMessage(['message' => 'test']), 'routing.key');
+        $app['amqp.exchanges']['testexchange']->publish(new AMQPMessage(['message' => 'test']), 'routing.key');
     }
 }
