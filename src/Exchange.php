@@ -4,7 +4,7 @@ namespace BlackwoodSeven\AmqpService;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
-class Exchange implements \ArrayAccess
+class Exchange
 {
     private $name;
     private $definition;
@@ -87,25 +87,5 @@ class Exchange implements \ArrayAccess
         ];
         $msg = new AMQPMessage(json_encode($data), $options);
         return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
-    }
-
-    /**
-     * from \ArrayAccess
-     */
-    public function offsetExists($offset)
-    {
-        return isset($this->definition[$offset]);
-    }
-    public function offsetGet($offset)
-    {
-        return $this->definition[$offset];
-    }
-    public function offsetSet($offset, $value)
-    {
-        $this->definition[$offset] = $value;
-    }
-    public function offsetUnset($offset)
-    {
-        unset($this->definition[$offset]);
     }
 }

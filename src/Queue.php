@@ -3,7 +3,7 @@ namespace BlackwoodSeven\AmqpService;
 
 use PhpAmqpLib\Channel\AMQPChannel;
 
-class Queue implements \ArrayAccess
+class Queue
 {
     private $name;
     private $definition;
@@ -53,6 +53,11 @@ class Queue implements \ArrayAccess
     public function getName(): string
     {
         return $this->name;
+    }
+
+    public function getBindings()
+    {
+        return $this->definition['bindings'];
     }
 
     /**
@@ -106,25 +111,5 @@ class Queue implements \ArrayAccess
             $msg->delivery_info['channel'] = $this->channel;
             $callback($msg);
         }
-    }
-
-    /**
-     * from \ArrayAccess
-     */
-    public function offsetExists($offset)
-    {
-        return isset($this->definition[$offset]);
-    }
-    public function offsetGet($offset)
-    {
-        return $this->definition[$offset];
-    }
-    public function offsetSet($offset, $value)
-    {
-        $this->definition[$offset] = $value;
-    }
-    public function offsetUnset($offset)
-    {
-        unset($this->definition[$offset]);
     }
 }
