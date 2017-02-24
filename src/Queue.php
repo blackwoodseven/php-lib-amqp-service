@@ -2,6 +2,7 @@
 namespace BlackwoodSeven\AmqpService;
 
 use PhpAmqpLib\Channel\AMQPChannel;
+use PhpAmqpLib\Message\AMQPMessage;
 
 class Queue
 {
@@ -85,6 +86,11 @@ class Queue
         if (!$this->channel) {
             throw new \Exception('unbound');
         }
+
+        $callbackWrapper = function (AMQPMessage $msg) use ($callback) {
+            $this->dispatch($msg, $callback);
+        };
+
         $this->channel->basic_consume(
             $this->name,
             $consumer_tag,
@@ -92,7 +98,7 @@ class Queue
             $no_ack,
             $exclusive,
             $nowait,
-            $callback
+            $callbackWrapper
         );
 
         while (count($this->channel->callbacks)) {
@@ -109,7 +115,19 @@ class Queue
     {
         while ($msg = $this->channel->basic_get($this->name, $no_ack)) {
             $msg->delivery_info['channel'] = $this->channel;
-            $callback($msg);
+            $this->dispatch($msg, $callback);
+        }
+    }
+
+    private function dispatch(AMQPMessage $msg, callable $callback)
+    {
+        try {
+            call_user_func($callback, $msg);
+            $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        }
+        catch (\Exception $e) {
+            $msg->delivery_info['channel']->basic_nack($msg->delivery_info['delivery_tag']);
+            throw $e;
         }
     }
 }
