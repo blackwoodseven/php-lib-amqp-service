@@ -30,6 +30,7 @@ class Queue
             'exclusive' => false,       // exclusive
             'auto_delete' => false,     // auto_delete
             'nowait' => false,          // nowait
+            'auto_ack' => true,         // auto ack/nack - temporary feature.
             'arguments' => [],
             'bindings' => [],
         ];
@@ -121,6 +122,10 @@ class Queue
 
     private function dispatch(AMQPMessage $msg, callable $callback)
     {
+        if (!$this->definition['auto_ack']) {
+            return call_user_func($callback, $msg);
+        }
+
         try {
             call_user_func($callback, $msg);
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
