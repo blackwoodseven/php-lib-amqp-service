@@ -38,7 +38,7 @@ $default_queue->listenOnce(function (\PhpAmqpLib\Message\AMQPMessage $msg) {
     // do stuff...
 });
 
-$app['amqp.queue']['another_queue']->listenOnce(function (\PhpAmqpLib\Message\AMQPMessage $msg) {
+$app['amqp.queues']['another_queue']->listenOnce(function (\PhpAmqpLib\Message\AMQPMessage $msg) {
     // do stuff...
 });
 
@@ -51,7 +51,7 @@ $default_exchange->publish(
     'my.routing.key'
 );
 
-$app['amqp.exchange']['another_exchange']->publish(
+$app['amqp.exchanges']['another_exchange']->publish(
     new \PhpAmqpLib\Message\AMQPMessage('Hello world'),
     'my.routing.key'
 );
