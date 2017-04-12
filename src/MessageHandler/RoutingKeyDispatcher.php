@@ -1,10 +1,10 @@
 <?php
 
-namespace BW7\MessageHandler;
+namespace BlackwoodSeven\AmqpService\MessageHandler;
 
 use PhpAmqpLib\Message\AMQPMessage;
 
-class RoutingKeyDispatcher implements MessageHandlerInterface
+class RoutingKeyDispatcher extends MessageHandlerBase
 {
     protected $handlers = [];
 
