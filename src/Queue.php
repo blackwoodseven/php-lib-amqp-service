@@ -62,6 +62,11 @@ class Queue
         return $this->definition['bindings'];
     }
 
+    public function getChannel(): AMQPChannel
+    {
+        return $this->channel;
+    }
+
     /**
      * Bind to an exchange.
      *
@@ -108,7 +113,7 @@ class Queue
     }
 
     /**
-     * Listen to the queue once.
+     * Listen to the queue once (until empty).
      *
      * @see AMQPChannel::basic_get().
      */
@@ -120,6 +125,32 @@ class Queue
         }
     }
 
+    /**
+     * Purge the queue.
+     *
+     * @see AMQPChannel::queue_purge().
+     */
+    public function purge($nowait = false)
+    {
+        return $this->channel->queue_purge($this->name, $nowait);
+    }
+
+    /**
+     * Delete the queue.
+     *
+     * @see AMQPChannel::queue_delete().
+     */
+    public function delete($if_unused = false, $if_empty = false, $nowait = false)
+    {
+        return $this->channel->queue_purge($this->name, $if_unused, $if_empty, $nowait);
+    }
+
+    /**
+     * Dispatch a message to a callback.
+     *
+     * @param  AMQPMessage $msg
+     * @param  callable    $callback
+     */
     private function dispatch(AMQPMessage $msg, callable $callback)
     {
         if (!$this->definition['auto_ack']) {
