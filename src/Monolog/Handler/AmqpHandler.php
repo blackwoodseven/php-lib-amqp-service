@@ -53,5 +53,4 @@ class AmqpHandler extends AbstractProcessingHandler
     {
         return new LineFormatter("%message% %extra%", null, true, true);
     }
-
 }

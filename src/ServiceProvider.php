@@ -5,8 +5,16 @@ use PhpAmqpLib\Connection\AMQPLazyConnection;
 use Pimple\ServiceProviderInterface;
 use Pimple\Container;
 
+/**
+ * Silex service provider.
+ */
 class ServiceProvider implements ServiceProviderInterface
 {
+    /**
+     * Setup amqp lazy connection and channel, and provide queues and exchanges.
+     *
+     * @see ServiceProviderInterface::register().
+     */
     public function register(Container $app)
     {
         $app['amqp.options.initializer'] = $app->protect(function () use ($app) {
@@ -37,7 +45,12 @@ class ServiceProvider implements ServiceProviderInterface
 
             AMQPLazyConnection::$LIBRARY_PROPERTIES['product'] = ['S', $app['amqp.options']['product']];
 
-            $dsn = parse_url($app['amqp.options']['dsn']) + ['port' => 15672, 'user' => null, 'pass' => null, 'path' => '//'];
+            $dsn = parse_url($app['amqp.options']['dsn']) + [
+                'port' => 15672,
+                'user' => null,
+                'pass' => null,
+                'path' => '//'
+            ];
             return new AMQPLazyConnection(
                 $dsn['host'],
                 $dsn['port'],

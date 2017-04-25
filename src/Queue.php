@@ -57,11 +57,23 @@ class Queue
         return $this->name;
     }
 
-    public function getBindings()
+    /**
+     * Get current bindings.
+     *
+     * @return array
+     *   The current bindings as specified during construction.
+     */
+    public function getBindings(): array
     {
         return $this->definition['bindings'];
     }
 
+    /**
+     * Get the channel used by this queue.
+     *
+     * @return AMQPChannel
+     *
+     */
     public function getChannel(): AMQPChannel
     {
         return $this->channel;
@@ -160,8 +172,7 @@ class Queue
         try {
             call_user_func($callback, $msg);
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $msg->delivery_info['channel']->basic_nack($msg->delivery_info['delivery_tag']);
             throw $e;
         }

@@ -62,8 +62,7 @@ class Exchange
         $mandatory = false,
         $immediate = false,
         $ticket = null
-    )
-    {
+    ) {
         return $this->channel->basic_publish($msg, $this->name, $routing_key, $mandatory, $immediate, $ticket);
     }
 
@@ -79,8 +78,7 @@ class Exchange
         $mandatory = false,
         $immediate = false,
         $ticket = null
-    )
-    {
+    ) {
         $options += [
             'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
             'content_type' => 'application/json',
