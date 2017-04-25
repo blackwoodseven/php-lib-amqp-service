@@ -154,7 +154,7 @@ class Queue
      */
     public function delete($if_unused = false, $if_empty = false, $nowait = false)
     {
-        return $this->channel->queue_purge($this->name, $if_unused, $if_empty, $nowait);
+        return $this->channel->queue_delete($this->name, $if_unused, $if_empty, $nowait);
     }
 
     /**
