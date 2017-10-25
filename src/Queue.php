@@ -70,6 +70,22 @@ class Queue
     }
 
     /**
+     * Get exchanges which this queue depends upon.
+     *
+     * @return array
+     *   The exchanges used by this queue.
+     */
+    public function getExchanges(): array
+    {
+        // Dependent exchanges = bindings + dead-letter-exchange.
+        $exchanges = array_keys($this->definition['bindings']);
+        if (!empty($this->definition['arguments']['x-dead-letter-exchange'])) {
+            $exchanges[] = $this->definition['arguments']['x-dead-letter-exchange'];
+        }
+        return array_unique($exchanges);
+    }
+
+    /**
      * Get the channel used by this queue.
      *
      * @return AMQPChannel

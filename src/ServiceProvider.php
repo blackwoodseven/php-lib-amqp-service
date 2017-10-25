@@ -103,11 +103,17 @@ class ServiceProvider implements ServiceProviderInterface
                 $firstQueueName = $firstQueueName ?? $name;
                 $queues[$name] = function () use ($name, $definition, $app) {
                     $queue = new Queue($app['amqp.channel'], $name, $definition);
-                    // Bind exchanges defined. This will also automatically
-                    // declare the exchange.
-                    foreach ($queue->getBindings() as $exchangeName => $routingKeys) {
-                        $queue->bind($app['amqp.exchanges'][$exchangeName], $routingKeys);
+
+                    // Declare dependent exchanges and bind.
+                    $bindings = $queue->getBindings();
+                    foreach ($queue->getExchanges() as $exchangeName) {
+                        $exchange = $app['amqp.exchanges'][$exchangeName];
+                        if (isset($bindings[$exchangeName])) {
+                            $routingKeys = $bindings[$exchangeName];
+                            $queue->bind($app['amqp.exchanges'][$exchangeName], $routingKeys);
+                        }
                     }
+
                     return $queue;
                 };
             }
