@@ -3,6 +3,7 @@ namespace BlackwoodSeven\AmqpService;
 
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPTable;
 
 class Queue
 {
@@ -42,7 +43,7 @@ class Queue
             $this->definition['exclusive'],
             $this->definition['auto_delete'],
             $this->definition['nowait'],
-            $this->definition['arguments']
+            new AMQPTable($this->definition['arguments'])
         );
     }
 
